@@ -40,18 +40,18 @@ defmodule Palpite.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.8.9"},
-      {:phoenix_ecto, "~> 4.5"},
-      {:ecto_sql, "~> 3.13"},
-      {:ecto_sqlite3, ">= 0.0.0"},
-      {:phoenix_html, "~> 4.1"},
-      {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 1.2.0"},
-      {:lazy_html, ">= 0.1.0"},
-      {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
+      {:phoenix, "~> 1.8"},
+      {:phoenix_ecto, "~> 4.7"},
+      {:ecto_sql, "~> 3.14"},
+      {:ecto_sqlite3, "~> 0.24"},
+      {:phoenix_html, "~> 4.3"},
+      {:phoenix_live_view, "~> 1.2"},
       {:gettext, "~> 1.0"},
-      {:bandit, "~> 1.5"},
-      {:lucide_icons, "~> 2.3"}
+      {:bandit, "~> 1.12"},
+      {:lucide_icons, "~> 2.4"},
+      {:lazy_html, "~> 0.1", only: :test},
+      {:phoenix_live_reload, "~> 1.7", only: :dev},
+      {:esbuild, "~> 0.10", runtime: Mix.env() == :dev}
     ]
   end
 
