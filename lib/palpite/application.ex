@@ -9,6 +9,7 @@ defmodule Palpite.Application do
   def start(_type, _args) do
     children = [
       Palpite.Repo,
+      {Task.Supervisor, name: TMDBSupervisor},
       {Ecto.Migrator,
        repos: Application.fetch_env!(:palpite, :ecto_repos), skip: skip_migrations?()},
       {Phoenix.PubSub, name: Palpite.PubSub},

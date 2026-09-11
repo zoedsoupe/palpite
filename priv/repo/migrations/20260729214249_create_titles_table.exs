@@ -11,6 +11,7 @@ defmodule Palpite.Repo.Migrations.CreateTitlesTable do
       add :genres, {:array, :string}
       add :like_count, :integer, default: 0
       add :dislike_count, :integer, default: 0
+      add :description, :text
     end
 
     create unique_index(:titles, [:tmdb_id])

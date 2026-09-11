@@ -1,4 +1,10 @@
 defmodule Palpite.Catalog.Tmdb do
+  require Logger
+
+  alias Palpite.Catalog.Entry
+
+  @behaviour Palpite.Catalog
+
   @genres [
     %{"id" => 12, "name" => "Adventure"},
     %{"id" => 14, "name" => "Fantasy"},
@@ -30,4 +36,63 @@ defmodule Palpite.Catalog.Tmdb do
   ]
 
   def genres, do: @genres
+
+  @animation_id Enum.find(@genres, &(&1["name"] == "Animation"))
+
+  @base_url ~c"https://api.themoviedb.org/3"
+  @token Application.compile_env!(:palpite, :tmdb_token)
+
+  @impl true
+  def search(query) when is_binary(query) do
+    params = URI.encode_query(%{include_adult: true, language: "en-US", query: query})
+    url = @base_url ++ ~c"/search/multi?" ++ String.to_charlist(params)
+
+    headers = [
+      {~c"authorization", ~c"Bearer #{@token}"},
+      {~c"accept", ~c"application/json"}
+    ]
+
+    case :httpc.request(:get, {url, headers}, [], [{:body_format, :binary}]) do
+      {:ok, {{_, 200, _}, _, body}} ->
+        {:ok, body |> JSON.decode!() |> parse_entries()}
+
+      {:ok, {{_, status, _}, _, body}} ->
+        Logger.warning("TMDB received wrong #{status} status: #{inspect(body)}")
+        {:error, :wrong_status}
+
+      {:error, reason} ->
+        Logger.error("Failed to query TMDB with: #{inspect(reason)}")
+        {:error, :network_error}
+    end
+  end
+
+  defp parse_entries(%{"results" => results}) do
+    for r <- results, r["media_type"] != "person" do
+      [year] = Regex.run(~r"\d{4}", r["release_date"] || "0000")
+
+      %Entry{
+        tmdb_id: r["id"],
+        name: r["title"] || r["name"] || r["original_title"],
+        year: year,
+        description: r["overview"],
+        poster_path: r["poster_path"] || r["backdrop_path"],
+        genres: r["genre_ids"],
+        type: parse_type(r),
+        in_catalog: false
+      }
+    end
+  end
+
+  defp parse_type(%{"media_type" => "movie"}), do: :film
+
+  defp parse_type(%{"media_type" => "tv", "genres" => genres} = r) do
+    if animation?(genres) and japanese?(r), do: :anime, else: :cartoon
+  end
+
+  defp parse_type(%{"media_type" => "tv"}), do: :series
+
+  defp animation?(genres), do: @animation_id in genres
+
+  defp japanese?(%{"original_language" => lang, "original_country" => countries}),
+    do: lang == "ja" or "JP" in countries
 end
