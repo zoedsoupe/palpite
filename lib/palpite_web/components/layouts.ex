@@ -5,10 +5,6 @@ defmodule PalpiteWeb.Layouts do
   """
   use PalpiteWeb, :html
 
-  # Embed all files in layouts/* within this module.
-  # The default root.html.heex file contains the HTML
-  # skeleton of your application, namely HTML headers
-  # and other static content.
   embed_templates "layouts/*"
 
   @doc """
@@ -65,20 +61,9 @@ defmodule PalpiteWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="site-header">
-      <div class="container cluster">
-        <.link navigate={~p"/"} class="wordmark">
-          <Lucideicons.popcorn class="icon" /> palpite
-        </.link>
-        <nav class="site-nav" aria-label={gettext("main navigation")}>
-          <.link navigate={~p"/"} class="nav-link">{gettext("discover")}</.link>
-          <.link navigate="/my-titles" class="nav-link">{gettext("my titles")}</.link>
-          <.link navigate="/honesty" class="nav-link">{gettext("honesty")}</.link>
-        </nav>
-      </div>
-    </header>
+    <header></header>
 
-    <main class="page container">
+    <main>
       {render_slot(@inner_block)}
     </main>
 
