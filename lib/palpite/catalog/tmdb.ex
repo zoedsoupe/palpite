@@ -1,4 +1,21 @@
 defmodule Palpite.Catalog.Tmdb do
+  @moduledoc """
+  Cliente TMDB via `:httpc`, implementação default do behaviour `Catalog`.
+
+  Gêneros ficam hardcoded em `@genres`: o mapeamento ID->nome do TMDB é
+  minúsculo e estável, então sem tabela no banco nem fetch em runtime
+  (`mix fetch_tmdb_genres` regenera a lista se um dia precisar).
+
+  O TMDB só conhece movie/tv, então o tipo é derivado: `movie` vira `:film`
+  (filme de anime é `:film`), `tv` com gênero Animation e origem japonesa
+  vira `:anime`, Animation sem JP vira `:cartoon`, o resto é `:series`.
+  Aqui é best-effort porque o `search/multi` nem sempre traz país de origem;
+  a classificação autoritativa acontece no upsert, com os dados completos.
+
+  Status inesperado ou falha de rede vira `{:error, _}` com log: quem chama
+  degrada pros resultados locais e a UI nem fica sabendo que o TMDB caiu.
+  """
+
   require Logger
 
   alias Palpite.Catalog.Entry

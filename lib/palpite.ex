@@ -1,9 +1,8 @@
 defmodule Palpite do
   @moduledoc """
-  Palpite keeps the contexts that define your domain
-  and business logic.
+  Contextos do domínio do Palpite.
 
-  Contexts are also responsible for managing your data, regardless
-  if it comes from the database, an external API or others.
+  `Palpite.Catalog` cuida de busca e persistência de títulos,
+  `Palpite.Identity` da identidade anônima por token.
   """
 end

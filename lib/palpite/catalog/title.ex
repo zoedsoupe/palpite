@@ -1,6 +1,13 @@
 defmodule Palpite.Catalog.Title do
   @moduledoc """
+  Schema de título persistido no catálogo local.
 
+  Guarda `poster_path` cru: a URL completa é montada na camada de view
+  (`https://image.tmdb.org/t/p/w342`), hotlink direto do TMDB, nunca proxy.
+  `genres` fica como lista de IDs do TMDB; a tradução pra nome acontece na
+  borda, em `Palpite.Catalog.Entry.from_title/1`, sem tabela de gêneros
+  no banco. `like_count` e `dislike_count` são contadores desnormalizados
+  que o contexto `Taste` alimenta.
   """
 
   use Ecto.Schema

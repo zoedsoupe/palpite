@@ -1,4 +1,14 @@
 defmodule Palpite.Catalog.Entry do
+  @moduledoc """
+  Struct de borda do catálogo.
+
+  Todo resultado de busca, local ou remoto, sai do contexto como `%Entry{}`.
+  `in_catalog` marca se já existe linha local: esses hits voltam primeiro na
+  busca porque carregam prova social. `from_title/1` resolve IDs de gênero
+  pra nomes usando a tabela hardcoded do `Palpite.Catalog.Tmdb`; ID
+  desconhecido é descartado em silêncio, nunca quebra.
+  """
+
   alias Palpite.Catalog.Title
   alias Palpite.Catalog.Tmdb
 

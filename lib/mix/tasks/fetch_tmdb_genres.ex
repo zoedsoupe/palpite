@@ -1,4 +1,13 @@
 defmodule Mix.Tasks.FetchTmdbGenres do
+  @moduledoc """
+  Busca as listas de gêneros de movie e tv no TMDB, deduplica por id,
+  ordena e imprime.
+
+  Serve pra regenerar a tabela hardcoded de gêneros do
+  `Palpite.Catalog.Tmdb` quando o TMDB mudar a lista (raro). Não roda
+  em runtime, é task de manutenção.
+  """
+
   require Logger
 
   @sources ~w(movie tv)

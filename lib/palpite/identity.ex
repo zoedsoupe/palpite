@@ -1,4 +1,13 @@
 defmodule Palpite.Identity do
+  @moduledoc """
+  Identidade anônima por token.
+
+  `create/0` gera 32 bytes aleatórios e persiste só o sha256: dump do banco
+  não vaza token nenhum. O token em base64 é mostrado uma vez só, como
+  código de recuperação da lista. Sem email, sem senha, sem conta: a
+  identidade é anônima e permanente.
+  """
+
   use Ecto.Schema
 
   import Ecto.Changeset

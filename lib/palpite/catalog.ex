@@ -1,6 +1,14 @@
 defmodule Palpite.Catalog do
   @moduledoc """
+  Contexto de catálogo: busca e normalização de títulos.
 
+  `search/2` é o único ponto de entrada e sempre devolve `%Entry{}`:
+  a LiveView nunca vê mapa cru do TMDB nem `%Title{}` de Ecto. Hits
+  locais vêm primeiro porque carregam prova social; com 5 ou mais,
+  a chamada ao TMDB é morta e nem sai do lugar. A fonte externa é
+  injetável (default `Palpite.Catalog.Tmdb`) pra testar com stub.
+
+  Query com menos de 2 chars retorna `{:ok, []}` sem tocar em nada.
   """
 
   import Ecto.Query
