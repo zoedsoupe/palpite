@@ -23,7 +23,7 @@ defmodule Palpite.Catalog do
   @type query :: String.t()
 
   @callback search(query) :: {:ok, list(Entry.t())} | {:error, message :: atom}
-  @callback details(tmdb_id :: String.t()) :: {:ok, Entry.t()} | {:error, message :: atom}
+  @callback details(tmdb_id :: integer) :: {:ok, Entry.t()} | {:error, message :: atom}
 
   def search(query, source \\ Tmdb)
 
@@ -38,8 +38,10 @@ defmodule Palpite.Catalog do
       Task.shutdown(tmdb_task, :brutal_kill)
       {:ok, locals}
     else
-      {:ok, tmdb} = Task.await(tmdb_task)
-      {:ok, locals ++ tmdb}
+      case Task.await(tmdb_task) do
+        {:ok, remote} -> {:ok, locals ++ remote}
+        {:error, _} -> {:ok, locals}
+      end
     end
   end
 
@@ -48,5 +50,15 @@ defmodule Palpite.Catalog do
 
     from(t in Title, where: like(t.name, ^query) or like(t.description, ^query))
     |> Repo.all()
+  end
+
+  @spec upsert_from_tmdb(tmdb_id :: integer, source :: module) ::
+          {:ok, Title.t()} | {:error, term}
+  def upsert_from_tmdb(tmdb_id, source \\ Tmdb) do
+    with {:ok, entry} <- source.details(tmdb_id) do
+      entry
+      |> Entry.to_title()
+      |> Repo.insert(on_conflict: :nothing, conflict_target: :tmdb_id)
+    end
   end
 end

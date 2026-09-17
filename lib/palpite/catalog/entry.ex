@@ -13,14 +13,14 @@ defmodule Palpite.Catalog.Entry do
   alias Palpite.Catalog.Tmdb
 
   @type t :: %__MODULE__{
-          tmdb_id: String.t(),
+          tmdb_id: integer,
           type: Palpite.Catalog.type(),
           name: String.t(),
-          year: integer(),
+          year: integer | nil,
           description: String.t(),
           poster_path: String.t(),
           # frontend will consume it
-          genres: list(String.t() | integer),
+          genres: list(integer),
           in_catalog: boolean
         }
 
