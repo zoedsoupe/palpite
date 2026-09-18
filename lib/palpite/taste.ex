@@ -87,10 +87,11 @@ defmodule Palpite.Taste do
         )
 
         apply_deltas(identity.id, old)
-        :ok
       end,
       mode: :immediate
     )
+
+    :ok
   end
 
   @doc """
@@ -189,8 +190,7 @@ defmodule Palpite.Taste do
     do: {:ok, Repo.get_by!(Title, tmdb_id: tmdb_id)}
 
   defp ensure_title(%Entry{tmdb_id: tmdb_id}) do
-    with {:ok, _} <- Catalog.upsert_from_tmdb(tmdb_id),
-         do: {:ok, Repo.get_by!(Title, tmdb_id: tmdb_id)}
+    Catalog.upsert_from_tmdb(tmdb_id)
   end
 
   defp entries_for(identity_id) do
@@ -231,10 +231,9 @@ defmodule Palpite.Taste do
       from(p in PairCount,
         update: [
           set: [
-            likes: fragment("pair_counts.likes + EXCLUDED.likes"),
-            a_like_b_dislike:
-              fragment("pair_counts.a_like_b_dislike + EXCLUDED.a_like_b_dislike"),
-            a_dislike_b_like: fragment("pair_counts.a_dislike_b_like + EXCLUDED.a_dislike_b_like")
+            likes: fragment("likes + EXCLUDED.likes"),
+            a_like_b_dislike: fragment("a_like_b_dislike + EXCLUDED.a_like_b_dislike"),
+            a_dislike_b_like: fragment("a_dislike_b_like + EXCLUDED.a_dislike_b_like")
           ]
         ]
       )

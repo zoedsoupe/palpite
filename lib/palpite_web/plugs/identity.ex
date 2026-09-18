@@ -10,7 +10,7 @@ defmodule PalpiteWeb.Plugs.Identity do
   de recuperação; o banco guarda só o sha256.
 
   O token também vai em `conn.assigns.current_identity_token`: é ele
-  que a tela de "meus títulos" renderiza como código de recuperação,
+  que a tela de "meus pitacos" renderiza como código de recuperação,
   e o `live_session/1` repassa pra session dos LiveViews.
   """
 

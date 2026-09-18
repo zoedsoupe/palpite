@@ -61,10 +61,12 @@ defmodule Palpite.Catalog do
   @spec upsert_from_tmdb(tmdb_id :: integer, source :: module) ::
           {:ok, Title.t()} | {:error, term}
   def upsert_from_tmdb(tmdb_id, source \\ @tmdb_client) do
-    with {:ok, entry} <- source.details(tmdb_id) do
-      entry
-      |> Entry.to_title()
-      |> Repo.insert(on_conflict: :nothing, conflict_target: :tmdb_id)
+    with {:ok, entry} <- source.details(tmdb_id),
+         {:ok, _} <-
+           entry
+           |> Entry.to_title()
+           |> Repo.insert(on_conflict: :nothing, conflict_target: :tmdb_id) do
+      {:ok, Repo.get_by!(Title, tmdb_id: tmdb_id)}
     end
   end
 end

@@ -31,7 +31,7 @@ defmodule Palpite.Catalog.Title do
 
   schema "titles" do
     field :tmdb_id, :integer
-    field :type, :string
+    field :type, Ecto.Enum, values: ~w(film cartoon anime series)a
     field :name, :string
     field :year, :integer
     field :poster_path, :string
@@ -39,6 +39,8 @@ defmodule Palpite.Catalog.Title do
     field :like_count, :integer, default: 0
     field :dislike_count, :integer, default: 0
     field :description, :string
+
+    timestamps()
   end
 
   @doc false

@@ -19,8 +19,8 @@ defmodule PalpiteWeb.HomeLive do
       </p>
 
       <div class="home-ctas">
-        <a href={~p"/descobrir"} class="btn btn-primary btn-lg">Ver meus pitacos</a>
-        <a href={~p"/meus-titulos"} class="btn btn-outline btn-lg">Montar minha lista</a>
+        <a href={~p"/descobrir"} class="btn btn-primary btn-lg">Quero um pitaco</a>
+        <a href={~p"/meus-titulos"} class="btn btn-outline btn-lg">Dar meus pitacos</a>
       </div>
 
       <p class="home-count">
@@ -30,7 +30,7 @@ defmodule PalpiteWeb.HomeLive do
       </p>
 
       <p class="home-count">
-        Trocou de aparelho? <a href={~p"/recuperar"}>Recupere sua lista</a>.
+        Trocou de aparelho? <a href={~p"/recuperar"}>Recupere sua lista de pitacos</a>.
       </p>
 
       <div class="home-posters" aria-hidden="true">

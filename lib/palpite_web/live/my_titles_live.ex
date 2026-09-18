@@ -4,12 +4,14 @@ defmodule PalpiteWeb.MyTitlesLive do
   alias Palpite.Catalog
   alias Palpite.Taste
 
+  require Logger
+
   @min_titles 3
 
   def mount(_params, _session, socket) do
     {:ok,
      assign(socket,
-       page_title: "Meus títulos",
+       page_title: "Meus pitacos",
        active: :meus_titulos,
        entries: Taste.list(socket.assigns.current_identity),
        query: "",
@@ -59,7 +61,9 @@ defmodule PalpiteWeb.MyTitlesLive do
       {:ok, _} ->
         {:noreply, refresh(socket, added: true)}
 
-      _ ->
+      {:error, err} ->
+        Logger.error("#{__MODULE__} => Failed to add title with #{inspect(err)}")
+
         {:noreply,
          socket
          |> assign(pending_tmdb: nil)
@@ -155,7 +159,7 @@ defmodule PalpiteWeb.MyTitlesLive do
 
         <a :if={unlocked?(@entries)} href={~p"/descobrir"} class="cta-card">
           <div>
-            <p class="cta-card-title">Pitacos liberados</p>
+            <p class="cta-card-title">Busque pitacos</p>
             <p class="cta-card-sub">Sua lista tem o mínimo necessário.</p>
           </div>
           <Lucideicons.arrow_right class="icon" />
