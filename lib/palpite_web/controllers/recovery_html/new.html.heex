@@ -1,0 +1,28 @@
+<div class="recovery-page">
+  <div class="recovery-card">
+    <div class="stack" style="--stack-space: var(--space-3)">
+      <h1>Recuperar minha lista</h1>
+      <p class="page-sub">
+        Cole o código de recuperação que você salvou para restaurar seus títulos.
+      </p>
+    </div>
+
+    <form action={~p"/recuperar"} method="post" class="stack">
+      <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+      <input
+        type="text"
+        name="code"
+        class="code-input"
+        placeholder="Seu código"
+        maxlength="6"
+        autocomplete="off"
+        required
+      />
+      <button type="submit" class="btn btn-primary btn-md btn-block">Restaurar títulos</button>
+    </form>
+
+    <p class="page-sub">
+      Não tem um código? <a href={~p"/meus-titulos"}>Comece uma lista nova</a>.
+    </p>
+  </div>
+</div>

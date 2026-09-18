@@ -1,0 +1,34 @@
+<header class="site-header">
+  <div class="container site-header-inner">
+    <a href={~p"/"} class="wordmark">Pitaco</a>
+    <nav class="site-nav">
+      <a
+        href={~p"/recuperar"}
+        class="nav-link nav-recover"
+        aria-current={assigns[:active] == :recuperar && "page"}
+      >
+        recuperar
+      </a>
+      <a
+        href={~p"/meus-titulos"}
+        class="nav-link"
+        aria-current={assigns[:active] == :meus_titulos && "page"}
+      >
+        meus títulos
+      </a>
+      <a
+        href={~p"/honestidade"}
+        class="nav-link"
+        aria-current={assigns[:active] == :honestidade && "page"}
+      >
+        honestidade
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+  {@inner_content}
+</main>
+
+<.flash_group flash={@flash} />

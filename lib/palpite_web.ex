@@ -89,6 +89,9 @@ defmodule PalpiteWeb do
       alias Phoenix.LiveView.JS
       alias PalpiteWeb.Layouts
 
+      # Presentation layer (posters, pt-BR labels)
+      import PalpiteWeb.Presenter
+
       # Routes generation with the ~p sigil
       unquote(verified_routes())
     end
