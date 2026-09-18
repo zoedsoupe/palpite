@@ -1,7 +1,7 @@
 # General application configuration
 import Config
 
-config :palpite, tmdb_token: System.get_env("TMDB_TOKEN", "some-dev-token")
+config :palpite, tmdb_token: System.fetch_env!("TMDB_TOKEN")
 
 config :palpite,
   ecto_repos: [Palpite.Repo],
@@ -25,7 +25,7 @@ config :phoenix_live_view,
 
 # Configure esbuild (the version is required)
 config :esbuild,
-  version: "0.25.4",
+  version: "0.28.2",
   palpite: [
     args:
       ~w(js/app.js css/app.css --bundle --target=es2022 --outdir=../priv/static/assets --external:/fonts/* --external:/images/* --alias:@=.),

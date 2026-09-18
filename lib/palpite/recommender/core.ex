@@ -34,7 +34,7 @@ defmodule Palpite.Recommender.Core do
           a_like_b_dislike: non_neg_integer,
           a_dislike_b_like: non_neg_integer
         }
-  @type provenance :: %{top_pairs: [{id, non_neg_integer}]}
+  @type provenance :: %{top_pairs: [{id, non_neg_integer}], total: non_neg_integer}
 
   @doc """
   Ranqueia candidatos por "quem tem gosto sobreposto curtiu isso".
@@ -82,7 +82,7 @@ defmodule Palpite.Recommender.Core do
     end
   end
 
-  # {título da pessoa, candidato} — linhas entre dois títulos da própria
+  # {título da pessoa, candidato} - linhas entre dois títulos da própria
   # pessoa ou sem nenhum não geram candidato
   defp orient(row, mine) do
     a_mine = MapSet.member?(mine, row.title_a_id)
@@ -103,6 +103,6 @@ defmodule Palpite.Recommender.Core do
     score = c.raw / (:math.pow(pop, @alpha) + @beta)
     top_pairs = c.pairs |> Enum.sort_by(&elem(&1, 1), :desc) |> Enum.take(@top_k)
 
-    {id, score, %{top_pairs: top_pairs}}
+    {id, score, %{top_pairs: top_pairs, total: c.total}}
   end
 end

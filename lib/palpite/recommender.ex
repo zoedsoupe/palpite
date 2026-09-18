@@ -21,15 +21,22 @@ defmodule Palpite.Recommender do
 
   @default_limit 20
 
+  @type provenance :: %{
+          total: non_neg_integer,
+          top_pairs: [%{name: String.t(), count: non_neg_integer}]
+        }
+
   @doc """
   Recomenda títulos pra identidade.
 
-  Opções: `:type` (`:film | :series | :anime | :cartoon`), `:genres`
-  (lista de IDs de gênero do TMDB), `:limit` (default #{@default_limit}).
-  Devolve `%{title, score, provenance}` em score decrescente.
+  Opções: `:type` (atom ou lista de atoms entre `:film | :series |
+  :anime | :cartoon`), `:genres` (lista de IDs de gênero do TMDB),
+  `:limit` (default #{@default_limit}). Devolve `%{title, score,
+  provenance}` em score decrescente, com a proveniência já resolvida:
+  `%{total, top_pairs: [%{name, count}]}`.
   """
   @spec recommend(Identity.t(), keyword) ::
-          {:ok, [%{title: Title.t(), score: float, provenance: Core.provenance()}]}
+          {:ok, [%{title: Title.t(), score: float, provenance: provenance()}]}
   def recommend(%Identity{} = identity, opts \\ []) do
     {likes, dislikes} = fetch_lists(identity.id)
     pair_rows = fetch_pairs(likes ++ dislikes)
@@ -78,15 +85,23 @@ defmodule Palpite.Recommender do
   defp join_titles(scored, opts) do
     ids = Enum.map(scored, &elem(&1, 0))
 
+    pair_ids =
+      scored
+      |> Enum.flat_map(fn {_id, _score, prov} -> Enum.map(prov.top_pairs, &elem(&1, 0)) end)
+      |> Enum.uniq()
+
     titles =
-      Repo.all(from(t in Title, where: t.id in ^ids))
+      Repo.all(from(t in Title, where: t.id in ^(ids ++ pair_ids)))
       |> Map.new(&{&1.id, &1})
 
     scored
     |> Enum.flat_map(fn {id, score, provenance} ->
       case titles do
-        %{^id => title} -> [%{title: title, score: score, provenance: provenance}]
-        _ -> []
+        %{^id => title} ->
+          [%{title: title, score: score, provenance: resolve_names(provenance, titles)}]
+
+        _ ->
+          []
       end
     end)
     |> filter_by_type(opts[:type])
@@ -94,10 +109,28 @@ defmodule Palpite.Recommender do
     |> Enum.take(opts[:limit] || @default_limit)
   end
 
-  defp filter_by_type(results, nil), do: results
+  defp resolve_names(provenance, titles) do
+    top_pairs =
+      Enum.flat_map(provenance.top_pairs, fn {tid, count} ->
+        case titles do
+          %{^tid => title} -> [%{name: title.name, count: count}]
+          _ -> []
+        end
+      end)
 
-  defp filter_by_type(results, type),
-    do: Enum.filter(results, &(&1.title.type == to_string(type)))
+    %{total: provenance.total, top_pairs: top_pairs}
+  end
+
+  defp filter_by_type(results, nil), do: results
+  defp filter_by_type(results, []), do: results
+
+  defp filter_by_type(results, type) when is_atom(type),
+    do: filter_by_type(results, [type])
+
+  defp filter_by_type(results, types) when is_list(types) do
+    strings = Enum.map(types, &to_string/1)
+    Enum.filter(results, &(&1.title.type in strings))
+  end
 
   defp filter_by_genres(results, nil), do: results
 

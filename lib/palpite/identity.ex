@@ -2,8 +2,8 @@ defmodule Palpite.Identity do
   @moduledoc """
   Identidade anônima por token.
 
-  `create/0` gera 32 bytes aleatórios e persiste só o sha256: dump do banco
-  não vaza token nenhum. O token em base64 é mostrado uma vez só, como
+  `create/0` gera um código de 6 caracteres base32 e persiste só o sha256:
+  dump do banco não vaza token nenhum. O código é mostrado uma vez só, como
   código de recuperação da lista. Sem email, sem senha, sem conta: a
   identidade é anônima e permanente.
   """
@@ -34,14 +34,17 @@ defmodule Palpite.Identity do
   end
 
   def create do
-    token = 32 |> :crypto.strong_rand_bytes() |> Base.url_encode64()
+    # 6 chars base32 = 30 bits. ponytail: colisão vira provável na casa dos
+    # milhares de identidades (birthday paradox); se o banco crescer, subir
+    # para 8+ chars ou retry em duplicata
+    token = 4 |> :crypto.strong_rand_bytes() |> Base.encode32() |> binary_part(0, 6)
     hash = :crypto.hash(:sha256, token)
     changeset = changeset(%__MODULE__{}, %{token_hash: hash})
     {token, Repo.insert!(changeset)}
   end
 
   def fetch(token) do
-    hash = :crypto.hash(:sha256, token)
+    hash = token |> String.trim() |> String.upcase() |> then(&:crypto.hash(:sha256, &1))
 
     if i = Repo.get_by(__MODULE__, token_hash: hash) do
       {:ok, i}

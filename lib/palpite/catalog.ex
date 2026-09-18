@@ -25,7 +25,13 @@ defmodule Palpite.Catalog do
   @callback search(query) :: {:ok, list(Entry.t())} | {:error, message :: atom}
   @callback details(tmdb_id :: integer) :: {:ok, Entry.t()} | {:error, message :: atom}
 
-  def search(query, source \\ Tmdb)
+  @tmdb_client Application.compile_env(:palpite, :tmdb_client, Tmdb)
+
+  @doc "Gêneros fixos do TMDB com nome pt-BR, fonte dos chips de filtro."
+  @spec genres() :: [%{id: integer, name: String.t()}]
+  def genres, do: Tmdb.genres() |> Enum.map(&%{id: &1["id"], name: &1["pt"]})
+
+  def search(query, source \\ @tmdb_client)
 
   def search(query, _) when byte_size(query) < 2, do: {:ok, []}
 
@@ -54,7 +60,7 @@ defmodule Palpite.Catalog do
 
   @spec upsert_from_tmdb(tmdb_id :: integer, source :: module) ::
           {:ok, Title.t()} | {:error, term}
-  def upsert_from_tmdb(tmdb_id, source \\ Tmdb) do
+  def upsert_from_tmdb(tmdb_id, source \\ @tmdb_client) do
     with {:ok, entry} <- source.details(tmdb_id) do
       entry
       |> Entry.to_title()
