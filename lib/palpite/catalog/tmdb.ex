@@ -16,6 +16,10 @@ defmodule Palpite.Catalog.Tmdb do
   (sempre com `origin_country`), e a classificação autoritativa acontece
   nesse vencedor. Se os dois falham, sobe o erro mais informativo.
 
+  Busca e details rodam em `en-US` e `pt-BR` em paralelo e o merge prefere
+  `name`/`description` em pt-BR quando não vierem vazios (o TMDB devolve
+  `""` pra tradução faltante), com en-US de fallback.
+
   Status inesperado ou falha de rede vira `{:error, _}` com log: quem chama
   degrada pros resultados locais e a UI nem fica sabendo que o TMDB caiu.
   """
@@ -66,12 +70,42 @@ defmodule Palpite.Catalog.Tmdb do
     Application.fetch_env!(:palpite, :tmdb_token)
   end
 
+  @langs ["en-US", "pt-BR"]
+
   @impl true
   def search(query) when is_binary(query) do
-    params = %{include_adult: true, language: "en-US", query: query}
+    results =
+      TMDBSupervisor
+      |> Task.Supervisor.async_stream_nolink(
+        @langs,
+        fn lang ->
+          {lang, get(~c"/search/multi", %{include_adult: true, language: lang, query: query})}
+        end,
+        ordered: false,
+        on_timeout: :kill_task
+      )
+      |> Enum.flat_map(fn
+        {:ok, {lang, {:ok, body}}} -> [{lang, body}]
+        _ -> []
+      end)
 
-    with {:ok, body} <- get(~c"/search/multi", params) do
-      {:ok, parse_entries(body)}
+    case results do
+      [] ->
+        {:error, :not_found}
+
+      bodies ->
+        by_lang = Map.new(bodies, fn {lang, body} -> {lang, parse_entries(body)} end)
+        en = Map.get(by_lang, "en-US", [])
+        pt = Map.get(by_lang, "pt-BR", [])
+        pt_by_id = Map.new(pt, &{&1.tmdb_id, &1})
+        en_ids = MapSet.new(en, & &1.tmdb_id)
+
+        # ordem do ranking en-US preservada; resultados só em pt-BR vão pro fim
+        merged =
+          Enum.map(en, &localize(&1, pt_by_id[&1.tmdb_id])) ++
+            Enum.reject(pt, &MapSet.member?(en_ids, &1.tmdb_id))
+
+        {:ok, merged}
     end
   end
 
@@ -139,11 +173,13 @@ defmodule Palpite.Catalog.Tmdb do
 
   @impl true
   def details(tmdb_id) do
+    combos = for media <- [:tv, :movie], lang <- @langs, do: {media, lang}
+
     results =
       TMDBSupervisor
       |> Task.Supervisor.async_stream_nolink(
-        [:tv, :movie],
-        &details_req(tmdb_id, &1),
+        combos,
+        fn {media, lang} -> {{media, lang}, details_req(tmdb_id, media, lang)} end,
         ordered: false,
         on_timeout: :kill_task
       )
@@ -152,15 +188,46 @@ defmodule Palpite.Catalog.Tmdb do
         _ -> []
       end)
 
-    Enum.find(results, &match?({:ok, _}, &1)) ||
-      Enum.find(results, {:error, :not_found}, &(&1 != {:error, :not_found}))
+    by = Map.new(results)
+
+    merged =
+      for media <- [:tv, :movie] do
+        with {:ok, en} <- Map.get(by, {media, "en-US"}, {:error, :not_found}) do
+          pt =
+            case Map.get(by, {media, "pt-BR"}) do
+              {:ok, pt} -> pt
+              _ -> nil
+            end
+
+          {:ok, localize(en, pt)}
+        end
+      end
+
+    Enum.find(merged, &match?({:ok, _}, &1)) ||
+      Enum.find_value(results, {:error, :not_found}, fn
+        {_key, {:error, reason}} -> if reason != :not_found, do: {:error, reason}
+        _ -> nil
+      end)
   end
 
-  defp details_req(tmdb_id, media) do
-    with {:ok, body} <- get(~c"/#{media}/#{tmdb_id}", %{language: "en-US"}) do
+  defp details_req(tmdb_id, media, lang) do
+    with {:ok, body} <- get(~c"/#{media}/#{tmdb_id}", %{language: lang}) do
       {:ok, parse_details(body, media)}
     end
   end
+
+  # pt-BR cobre name/description quando não vier em branco; resto vem do en-US
+  defp localize(entry, nil), do: entry
+
+  defp localize(entry, pt) do
+    %{
+      entry
+      | name: if(blank?(pt.name), do: entry.name, else: pt.name),
+        description: if(blank?(pt.description), do: entry.description, else: pt.description)
+    }
+  end
+
+  defp blank?(s), do: s in [nil, ""]
 
   defp parse_details(r, media) do
     genre_ids = Enum.map(r["genres"] || [], & &1["id"])
