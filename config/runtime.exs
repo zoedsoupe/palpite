@@ -23,6 +23,8 @@ end
 config :palpite, PalpiteWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+config :palpite, tmdb_token: System.fetch_env!("TMDB_TOKEN")
+
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
   config :palpite, PalpiteWeb.Endpoint,

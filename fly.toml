@@ -1,4 +1,4 @@
-# fly.toml app configuration file generated for zoeyrinha-web on 2024-09-03T00:45:37-03:00
+# fly.toml app configuration file generated for pitaco on 2026-09-18T15:58:27-03:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
@@ -10,8 +10,16 @@ kill_signal = 'SIGTERM'
 [build]
 
 [env]
-  # PHX_HOST = 'palpite.dev'
+  DATABASE_PATH = '/mnt/name/name.db'
+  PHX_HOST = 'pitaco.fly.dev'
   PORT = '8080'
+
+[[mounts]]
+  source = 'name'
+  destination = '/mnt/name'
+  auto_extend_size_threshold = 80
+  auto_extend_size_increment = '1GB'
+  auto_extend_size_limit = '10GB'
 
 [http_service]
   internal_port = 8080
@@ -28,4 +36,6 @@ kill_signal = 'SIGTERM'
 
 [[vm]]
   size = 'shared-cpu-1x'
-  memory = "256mb"
+  memory = '256mb'
+  cpus = 1
+  memory_mb = 256

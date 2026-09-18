@@ -1,8 +1,6 @@
 # General application configuration
 import Config
 
-config :palpite, tmdb_token: System.fetch_env!("TMDB_TOKEN")
-
 config :palpite,
   ecto_repos: [Palpite.Repo],
   generators: [timestamp_type: :utc_datetime]

@@ -61,7 +61,10 @@ defmodule Palpite.Catalog.Tmdb do
   @animation_id @genres |> Enum.find(&(&1["name"] == "Animation")) |> Map.fetch!("id")
 
   @base_url ~c"https://api.themoviedb.org/3"
-  @token Application.compile_env!(:palpite, :tmdb_token)
+
+  defp token do
+    Application.fetch_env!(:palpite, :tmdb_token)
+  end
 
   @impl true
   def search(query) when is_binary(query) do
@@ -77,7 +80,7 @@ defmodule Palpite.Catalog.Tmdb do
     url = @base_url ++ path ++ ~c"?" ++ String.to_charlist(query)
 
     headers = [
-      {~c"authorization", ~c"Bearer #{@token}"},
+      {~c"authorization", ~c"Bearer #{token()}"},
       {~c"accept", ~c"application/json"}
     ]
 
