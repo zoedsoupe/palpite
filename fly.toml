@@ -1,0 +1,31 @@
+# fly.toml app configuration file generated for zoeyrinha-web on 2024-09-03T00:45:37-03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'pitaco'
+primary_region = 'gru'
+kill_signal = 'SIGTERM'
+
+[build]
+
+[env]
+  # PHX_HOST = 'palpite.dev'
+  PORT = '8080'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+  [http_service.concurrency]
+    type = 'connections'
+    hard_limit = 1000
+    soft_limit = 1000
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = "256mb"
