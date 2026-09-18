@@ -247,6 +247,22 @@
     padding-bottom: var(--space-1);
   }
 
+  /* tiny screens: nav drops below the wordmark instead of overflowing */
+  @media (max-width: 26rem) {
+    .site-header-inner {
+      flex-wrap: wrap;
+      height: auto;
+      padding-block: var(--space-3);
+      row-gap: var(--space-2);
+    }
+
+    .site-nav {
+      width: 100%;
+      justify-content: space-between;
+      gap: var(--space-3);
+    }
+  }
+
   /* buttons */
 
   .btn {
