@@ -34,17 +34,37 @@ defmodule Palpite.Identity do
   end
 
   def create do
-    bytes = :crypto.strong_rand_bytes(32)
-    token = :crypto.hash(:sha256, bytes)
-    changeset = changeset(%__MODULE__{}, %{token_hash: token})
-    {Base.encode64(token), Repo.insert!(changeset)}
+    token = 32 |> :crypto.strong_rand_bytes() |> Base.url_encode64()
+    hash = :crypto.hash(:sha256, token)
+    changeset = changeset(%__MODULE__{}, %{token_hash: hash})
+    {token, Repo.insert!(changeset)}
   end
 
-  def fetch(hash) do
+  def fetch(token) do
+    hash = :crypto.hash(:sha256, token)
+
     if i = Repo.get_by(__MODULE__, token_hash: hash) do
       {:ok, i}
     else
       {:error, :not_found}
     end
+  end
+
+  @doc """
+  Marca a identidade como vista agora, no máximo uma escrita por hora:
+  toda request autenticada chama, e escrita por request botaria o banco
+  no hot path à toa (a coluna só alimenta introspecção de atividade).
+  """
+  @spec touch(t) :: :ok
+  def touch(%__MODULE__{last_seen_at: last_seen} = i) do
+    now = DateTime.utc_now(:second)
+
+    if is_nil(last_seen) or DateTime.diff(now, last_seen, :second) >= 3600 do
+      i
+      |> changeset(%{last_seen_at: now})
+      |> Repo.update()
+    end
+
+    :ok
   end
 end

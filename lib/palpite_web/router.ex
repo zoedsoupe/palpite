@@ -8,6 +8,7 @@ defmodule PalpiteWeb.Router do
     plug :put_root_layout, html: {PalpiteWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug PalpiteWeb.Plugs.Identity
   end
 
   pipeline :api do

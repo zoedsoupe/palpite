@@ -1,108 +1,106 @@
 defmodule Palpite.Recommender do
   @moduledoc """
-  Núcleo puro de recomendação: entram dados, sai lista ranqueada.
+  Shell de leitura do recomendador: a única função do app que compõe
+  dados de dois contextos (`Taste`/`pair_counts` + `Catalog`), e faz
+  isso lendo, nunca deixando um contexto chamar as entranhas do outro.
 
-  A matemática, por candidato T:
-
-    * `raw(T) = Σ likes(T,t) − λ·Σ likes(T,d)` - soma os co-likes com
-      cada título `t` que a pessoa curtiu e subtrai λ vezes os co-likes
-      com os que ela não curtiu. Algo popular entre quem compartilha
-      seus dislikes empurra pra baixo, não só deixa de empurrar pra cima.
-    * `score = raw / (pop^α + β)` - divide pela raiz do like_count
-      global do candidato: um título de nicho com 3 sobreposições fortes
-      ganha de um blockbuster com 30 fracas.
-    * Piso duro: candidato fora se a soma dos pares contribuintes < piso.
-      Um ou dois co-likes é ruído; abaixo do piso, silêncio em vez de
-      recomendar no feeling.
-    * Proveniência: os top-k pares contribuintes por candidato saem do
-      próprio fold - alimenta o "12 pessoas que curtiram Dark e 1899
-      também curtiram Severance" da UI.
+  Fluxo de `recommend/2`: entradas da identidade -> uma query de pares
+  -> mapa de popularidade -> `Core.score/5` (puro) -> pós-filtro por
+  `genres`/`type` no pool -> join com `titles` -> take N. Filtrar nunca
+  afeta score, só quais candidatos aparecem.
   """
 
-  @lambda 1.0
-  @alpha 0.5
-  @beta 1
-  @floor 3
-  @top_k 3
-  @pool_size 200
+  import Ecto.Query
 
-  @type id :: integer
-  @type pair_row :: %{
-          title_a_id: id,
-          title_b_id: id,
-          likes: non_neg_integer,
-          a_like_b_dislike: non_neg_integer,
-          a_dislike_b_like: non_neg_integer
-        }
-  @type provenance :: %{top_pairs: [{id, non_neg_integer}]}
+  alias Palpite.Catalog.Title
+  alias Palpite.Identity
+  alias Palpite.Recommender.Core
+  alias Palpite.Repo
+  alias Palpite.Taste.PairCount
+  alias Palpite.Taste.TasteEntry
+
+  @default_limit 20
 
   @doc """
-  Ranqueia candidatos por "quem tem gosto sobreposto curtiu isso".
+  Recomenda títulos pra identidade.
 
-  `likes`/`dislikes` são os title_ids da pessoa, `pair_rows` as linhas
-  de `pair_counts` que tocam qualquer um deles, `popularity` o mapa
-  `title_id => like_count`. Títulos já na lista nunca são candidatos.
-  Devolve até 200 `{title_id, score, provenance}` em score decrescente.
+  Opções: `:type` (`:film | :series | :anime | :cartoon`), `:genres`
+  (lista de IDs de gênero do TMDB), `:limit` (default #{@default_limit}).
+  Devolve `%{title, score, provenance}` em score decrescente.
   """
-  @spec score(
-          likes :: [id],
-          dislikes :: [id],
-          pair_rows :: [pair_row],
-          popularity :: %{id => non_neg_integer},
-          opts :: keyword
-        ) :: [{id, float, provenance}]
-  def score(likes, dislikes, pair_rows, popularity, _opts \\ []) do
-    liked = MapSet.new(likes)
-    mine = MapSet.union(liked, MapSet.new(dislikes))
+  @spec recommend(Identity.t(), keyword) ::
+          {:ok, [%{title: Title.t(), score: float, provenance: Core.provenance()}]}
+  def recommend(%Identity{} = identity, opts \\ []) do
+    {likes, dislikes} = fetch_lists(identity.id)
+    pair_rows = fetch_pairs(likes ++ dislikes)
+    popularity = fetch_popularity()
 
-    pair_rows
-    |> Enum.reduce(%{}, &accumulate(&1, &2, liked, mine))
-    |> Enum.filter(fn {_id, c} -> c.total >= @floor end)
-    |> Enum.map(&score_candidate(&1, popularity))
-    |> Enum.sort_by(&elem(&1, 1), :desc)
-    |> Enum.take(@pool_size)
+    scored = Core.score(likes, dislikes, pair_rows, popularity, opts)
+
+    {:ok, join_titles(scored, opts)}
   end
 
-  defp accumulate(row, acc, liked, mine) do
-    case orient(row, mine) do
-      {user_tid, candidate_tid} ->
-        count = row.likes
-        sign = if MapSet.member?(liked, user_tid), do: 1.0, else: -@lambda
-
-        Map.update(acc, candidate_tid, contribution(sign * count, user_tid, count), fn c ->
-          %{
-            raw: c.raw + sign * count,
-            total: c.total + count,
-            pairs: [{user_tid, count} | c.pairs]
-          }
-        end)
-
-      nil ->
-        acc
-    end
+  defp fetch_lists(identity_id) do
+    Repo.all(
+      from(e in TasteEntry,
+        where: e.identity_id == ^identity_id,
+        select: {e.title_id, e.polarity}
+      )
+    )
+    |> Enum.split_with(fn {_tid, pol} -> pol == "like" end)
+    |> then(fn {likes, dislikes} ->
+      {Enum.map(likes, &elem(&1, 0)), Enum.map(dislikes, &elem(&1, 0))}
+    end)
   end
 
-  # {título da pessoa, candidato} — linhas entre dois títulos da própria
-  # pessoa ou sem nenhum não geram candidato
-  defp orient(row, mine) do
-    a_mine = MapSet.member?(mine, row.title_a_id)
-    b_mine = MapSet.member?(mine, row.title_b_id)
+  defp fetch_pairs([]), do: []
 
-    cond do
-      a_mine and not b_mine -> {row.title_a_id, row.title_b_id}
-      b_mine and not a_mine -> {row.title_b_id, row.title_a_id}
-      true -> nil
-    end
+  defp fetch_pairs(ids) do
+    Repo.all(
+      from(p in PairCount,
+        where: p.title_a_id in ^ids or p.title_b_id in ^ids,
+        select: %{
+          title_a_id: p.title_a_id,
+          title_b_id: p.title_b_id,
+          likes: p.likes,
+          a_like_b_dislike: p.a_like_b_dislike,
+          a_dislike_b_like: p.a_dislike_b_like
+        }
+      )
+    )
   end
 
-  defp contribution(raw, user_tid, count),
-    do: %{raw: raw, total: count, pairs: [{user_tid, count}]}
-
-  defp score_candidate({id, c}, popularity) do
-    pop = Map.get(popularity, id, 0)
-    score = c.raw / (:math.pow(pop, @alpha) + @beta)
-    top_pairs = c.pairs |> Enum.sort_by(&elem(&1, 1), :desc) |> Enum.take(@top_k)
-
-    {id, score, %{top_pairs: top_pairs}}
+  defp fetch_popularity do
+    Repo.all(from(t in Title, select: {t.id, t.like_count}))
+    |> Map.new()
   end
+
+  defp join_titles(scored, opts) do
+    ids = Enum.map(scored, &elem(&1, 0))
+
+    titles =
+      Repo.all(from(t in Title, where: t.id in ^ids))
+      |> Map.new(&{&1.id, &1})
+
+    scored
+    |> Enum.flat_map(fn {id, score, provenance} ->
+      case titles do
+        %{^id => title} -> [%{title: title, score: score, provenance: provenance}]
+        _ -> []
+      end
+    end)
+    |> filter_by_type(opts[:type])
+    |> filter_by_genres(opts[:genres])
+    |> Enum.take(opts[:limit] || @default_limit)
+  end
+
+  defp filter_by_type(results, nil), do: results
+
+  defp filter_by_type(results, type),
+    do: Enum.filter(results, &(&1.title.type == to_string(type)))
+
+  defp filter_by_genres(results, nil), do: results
+
+  defp filter_by_genres(results, genres),
+    do: Enum.filter(results, &Enum.any?(genres, fn g -> g in &1.title.genres end))
 end
